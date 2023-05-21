@@ -4,7 +4,7 @@ using UnityEngine;
 using Photon.Pun;
 using Unity.VisualScripting;
 
-public class SpawnManager : MonoBehaviourPunCallbacks
+public class GameController : MonoBehaviourPunCallbacks
 {
     public GameObject[] spawns;
     public GameObject player;
