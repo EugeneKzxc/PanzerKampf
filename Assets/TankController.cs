@@ -3,30 +3,36 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class TurretController : MonoBehaviourPunCallbacks
+public class TankController : MonoBehaviourPunCallbacks
 {
     [SerializeField] GameObject turret;
     [SerializeField] GameObject body;
     [SerializeField] GameObject gun;
-    [SerializeField] Camera cam;
+    [SerializeField] Camera mainCam;
+    [SerializeField] Camera scope;
     [SerializeField] CharacterController characterController;
+    [SerializeField] GameObject shotPoint;
+    [SerializeField] GameObject bulletPrefab;
 
     public PhotonView view;
     public GunSync gunner;
+    private Camera activeCamera;
 
     public float rotationSpeedGun = 10f;
     public float rotationSpeedBody = 50f;
     public float moveSpeed = 5f;
 
-    private float rotation;
     private float _gravity = -10f;
     private float _yAxisVelocity;
 
     void Start()
     {
+        activeCamera = mainCam;
+
         if (!view.IsMine)
         {
-            cam.enabled = false;
+            mainCam.enabled = false;
+            scope.enabled = false;
             characterController.enabled = false;
         }
 
@@ -57,17 +63,51 @@ public class TurretController : MonoBehaviourPunCallbacks
 
         if (photonView.IsMine)
         {
-            // Получение значения поворота пушки из компонента GunSync
             float gunRotation = gunner.transform.localRotation.eulerAngles.x;
-            // Отправка значения поворота пушки по сети
             photonView.RPC("SyncGunRotation", RpcTarget.Others, gunRotation);
+
+            if (Input.GetMouseButtonDown(0))
+            {
+                CreateBullet();
+
+            }
+
+            if (Input.GetKeyDown(KeyCode.LeftShift))
+            {
+                if (activeCamera == mainCam)
+                {
+                    activeCamera = scope;
+                    mainCam.enabled = false;
+                    scope.enabled = true;
+                }
+                else
+                {
+                    activeCamera = mainCam;
+                    mainCam.enabled = true;
+                    scope.enabled = false;
+                }
+            }
         }
     }
 
     [PunRPC]
     private void SyncGunRotation(float gunRotation)
     {
-        // Применение значения поворота пушки к локальной пушке
         gunner.transform.localRotation = Quaternion.Euler(gunRotation, 0f, 0f);
+    }
+
+    private void CreateBullet()
+    {
+        GameObject bullet = Instantiate(bulletPrefab, shotPoint.transform.position, shotPoint.transform.rotation);
+        bullet.GetComponent<Rigidbody>().velocity = bullet.transform.forward * 100f;
+
+        photonView.RPC("SpawnBullet", RpcTarget.Others, bullet.transform.position, bullet.transform.rotation);
+    }
+
+    [PunRPC]
+    private void SpawnBullet(Vector3 position, Quaternion rotation)
+    {
+        GameObject bullet = Instantiate(bulletPrefab, position, rotation);
+        bullet.GetComponent<Rigidbody>().velocity = bullet.transform.forward * 100f;
     }
 }
